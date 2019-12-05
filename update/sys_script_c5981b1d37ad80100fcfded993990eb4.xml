@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update sys_domain="global" table="sys_script">
+    <sys_script action="INSERT_OR_UPDATE">
+        <abort_action>false</abort_action>
+        <access>package_private</access>
+        <action_delete>false</action_delete>
+        <action_insert>false</action_insert>
+        <action_query>false</action_query>
+        <action_update>true</action_update>
+        <active>true</active>
+        <add_message>false</add_message>
+        <advanced>true</advanced>
+        <change_fields>false</change_fields>
+        <client_callable>false</client_callable>
+        <collection>alm_asset</collection>
+        <condition/>
+        <description/>
+        <execute_function>false</execute_function>
+        <filter_condition/>
+        <is_rest>false</is_rest>
+        <message/>
+        <name>Asset send to Blockchain</name>
+        <order>100</order>
+        <priority>100</priority>
+        <rest_method/>
+        <rest_method_text/>
+        <rest_service/>
+        <rest_service_text/>
+        <rest_variables/>
+        <role_conditions/>
+        <script><![CDATA[(function executeRule(current, previous /*null when async*/) {
+
+	// Add your code here
+	var grm = new GlideRecord("alm_asset");
+	grm.addQuery("sys_id",current.sys_id); 
+	grm.query();  
+	if(grm.next()){ 
+		var assetTag = grm.asset_tag;
+		var vendor = grm.vendor;
+		var vendorName = 'VEN0001001';
+		var facilityName = 'admin';
+		var grv = new GlideRecord("core_company");
+		grv.addQuery("sys_id",vendor); 
+		grv.addQuery("vendor",true); 
+		grv.query();  
+		if(grv.next()){ 
+			vendorName = grv.name; 
+		}
+		var facility = grm.stockroom;
+		var grf = new GlideRecord("alm_stockroom");
+		grf.addQuery("sys_id",facility); 
+		grf.query();  
+		if(grf.next()){ 
+			var facilityAdmin = grf.manager;
+			var grma = new GlideRecord("sys_user");
+			grma.addQuery("sys_id",facilityAdmin); 
+			grma.query();  
+			if(grma.next()){ 
+				 facilityName = grma.user_name;
+			}
+		}
+		//1) Facility  Sending 
+		r = new sn_ws.RESTMessageV2(); 
+		r.setHttpMethod("POST"); // GET or POST verbs, depends on your service 
+		r.setEndpoint("http://http://52.13.115.187:3000/api/Actor"); ///54.70.131.179//34.216.125.76
+		r.setRequestHeader("Content-Type", "application/x-www-form-urlencoded"); 
+		// if any query parameters, you can pass like this. 
+		var body = "actorId="+facilityName; 
+		r.setRequestBody(body);  
+		// If you have authentication, you can pass like below. 
+		//r.setBasicAuth(coreGR.username, coreGR.password.getDecryptedValue()); 
+		var response = r.execute(); 
+		var responseBody = response.getBody(); 
+		var httpStatus = response.getStatusCode(); 
+		//gs.addErrorMessage(httpStatus);
+		var http_error = response.haveError();  
+
+		//2) Vendor  Sending 
+		r = new sn_ws.RESTMessageV2(); 
+		r.setHttpMethod("POST"); // GET or POST verbs, depends on your service 
+		r.setEndpoint("http://52.13.115.187:3000/api/Actor"); 
+		r.setRequestHeader("Content-Type", "application/x-www-form-urlencoded"); 
+		// if any query parameters, you can pass like this. 
+		var body = "actorId="+vendorName; 
+		r.setRequestBody(body);  
+		// If you have authentication, you can pass like below. 
+		//r.setBasicAuth(coreGR.username, coreGR.password.getDecryptedValue()); 
+		var response = r.execute(); 
+		var responseBody = response.getBody(); 
+		var httpStatus = response.getStatusCode(); 
+		//gs.addErrorMessage(httpStatus);
+		var http_error = response.haveError();  
+
+		//3) Asset  Sending 
+		r = new sn_ws.RESTMessageV2(); 
+		r.setHttpMethod("POST"); // GET or POST verbs, depends on your service 
+		r.setEndpoint("http://52.13.115.187:3000/api/Item"); 
+		r.setRequestHeader("Content-Type", "application/x-www-form-urlencoded"); 
+		// if any query parameters, you can pass like this. 
+		var body = "itemId="+assetTag+"&holder="+facilityName+"&handler="+vendorName+"&status=RECEIVED"; 
+		r.setRequestBody(body);  
+		// If you have authentication, you can pass like below. 
+		//r.setBasicAuth(coreGR.username, coreGR.password.getDecryptedValue()); 
+		var response = r.execute(); 
+		var responseBody = response.getBody(); 
+		var httpStatus = response.getStatusCode(); 
+		//gs.addErrorMessage(httpStatus);
+		var http_error = response.haveError();  
+
+		//4) Asset  Transaction 
+		r = new sn_ws.RESTMessageV2(); 
+		r.setHttpMethod("POST"); // GET or POST verbs, depends on your service 
+		r.setEndpoint("http://52.13.115.187:3000/api/ItemTransaction"); 
+		r.setRequestHeader("Content-Type", "application/x-www-form-urlencoded"); 
+		// if any query parameters, you can pass like this. 
+		var body = "sender="+vendorName+"&receiver="+facilityName+"&item="+assetTag+"&status=RECEIVED"; 
+		r.setRequestBody(body);  
+		// If you have authentication, you can pass like below. 
+		//r.setBasicAuth(coreGR.username, coreGR.password.getDecryptedValue()); 
+		var response = r.execute(); 
+		var responseBody = response.getBody(); 
+		var httpStatus = response.getStatusCode(); 
+		//gs.addErrorMessage(httpStatus);
+		var http_error = response.haveError();  
+		var grt = new GlideRecord('x_301072_bc_asset_transactions');
+		grt.initialize(); 
+		grt.asset =  grm.asset_tag; 
+		grt.asset_id = current.sys_id; 
+		grt.receiver = facilityName; 
+		grt.sender =vendorName; 
+		grt.status = httpStatus; 
+		grt.response_data = responseBody; 
+		//gs.addErrorMessage(responseBody["transactionId"])
+		//gs.addErrorMessage(responseBody)
+		if(httpStatus==200){
+			var resObj = JSON.parse(responseBody);
+			grt.transaction_id = resObj.transactionId;
+			grt.transaction_status = resObj.status;
+		}
+		grt.insert();
+
+	}
+
+})(current, previous);]]></script>
+        <sys_class_name>sys_script</sys_class_name>
+        <sys_created_by>admin</sys_created_by>
+        <sys_created_on>2019-12-05 13:48:08</sys_created_on>
+        <sys_domain>global</sys_domain>
+        <sys_domain_path>/</sys_domain_path>
+        <sys_id>c5981b1d37ad80100fcfded993990eb4</sys_id>
+        <sys_mod_count>1</sys_mod_count>
+        <sys_name>Asset send to Blockchain</sys_name>
+        <sys_overrides/>
+        <sys_package display_value="Blockchain" source="x_301072_bc">c1a61bd137ad80100fcfded993990ed8</sys_package>
+        <sys_policy/>
+        <sys_scope display_value="Blockchain">c1a61bd137ad80100fcfded993990ed8</sys_scope>
+        <sys_update_name>sys_script_c5981b1d37ad80100fcfded993990eb4</sys_update_name>
+        <sys_updated_by>admin</sys_updated_by>
+        <sys_updated_on>2019-12-05 14:09:57</sys_updated_on>
+        <template/>
+        <when>async</when>
+    </sys_script>
+    <sys_translated_text action="delete_multiple" query="documentkey=c5981b1d37ad80100fcfded993990eb4"/>
+</record_update>

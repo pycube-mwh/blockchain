@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?><database>
+    <element label="Asset Transactions" max_length="40" name="x_301072_bc_asset_transactions" type="collection">
+        <element label="Asset" max_length="40" name="asset" type="string"/>
+        <element label="Asset Id" max_length="32" name="asset_id" reference="alm_asset" type="reference"/>
+        <element label="Receiver" max_length="40" name="receiver" type="string"/>
+        <element label="Response Data" max_length="4000" name="response_data" type="string"/>
+        <element label="Sender" max_length="40" name="sender" type="string"/>
+        <element label="Status" max_length="40" name="status" type="string"/>
+        <element label="Transaction Id" max_length="250" name="transaction_id" type="string"/>
+        <element label="Transaction Status" max_length="40" name="transaction_status" type="string"/>
+        <index name="index">
+            <element name="asset_id"/>
+        </index>
+    </element>
+</database>
